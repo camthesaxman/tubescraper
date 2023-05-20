@@ -666,6 +666,19 @@ def serve_watch_page(handler, videoId, plist=None):
 
 ##### Comments Page #####
 
+# validates a page number param and returns the page number, min item, and max item (all 1 indexed)
+def page_min_max(params, itemsPerPage):
+    page = params['page'][0] if 'page' in params else 1
+    try:
+        page = int(page)
+    except TypeError:
+        page = 1
+    if page < 1:
+        page = 1
+    min = (page - 1) * itemsPerPage + 1
+    max = page * itemsPerPage
+    return (page, min, max)
+
 commentHTML = '''
 <div class="comment">
  <a href="/channel/%s" target="_top"><img src="%s"></a>
@@ -691,17 +704,46 @@ def render_comment(comment):
     return content
 
 def serve_comments_page(handler, params):
+    if 'v' not in params:
+        raise Error404
     videoId = params['v'][0]
+    sort    = params['sort'][0] if 'sort' in params else None
+    (pageNum, minComment, maxComment) = page_min_max(params, 10)
+    print('page: %i, mincomm: %i, maxcomm: %i' % (pageNum, minComment, maxComment))
+    if sort not in {'top', 'new'}:
+        sort = 'top'
     url = 'https://youtube.com/watch?v=' + videoId
-    opts = {'getcomments':True, 'extract_flat':True}
+    opts = {
+        'getcomments': True,
+        'extractor_args': {
+            'youtube': {
+                'max_comments': ['all',str(maxComment+1)],  # try to fetch an extra one so we can know if we are at the end of the list
+                'comment_sort': [sort],
+                'player_skip': ['js', 'webpage', 'configs']
+            }
+        }
+    }
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=False)
-    # get root comments
-    rootComments = [c for c in info['comments'] if c['parent'] == 'root']
-    # get replies
+    # get root comments and attach their replies
+    rootComments = [c for c in info['comments'] if c['parent'] == 'root'][minComment-1:]
     for comment in rootComments:
         comment['replies'] = [c for c in info['comments'] if c['parent'] == comment['id']]
-    content = ''.join([render_comment(c) for c in rootComments])
+    thisUrl = '?v=' + videoId
+    # sorter
+    content = '<div>Sort By: '
+    content += '<b>Top</b>' if sort == 'top' else '<a href="%s">Top</a>' % esc(thisUrl + '&sort=top')
+    content += ' '
+    content += '<b>New</b>' if sort == 'new' else '<a href="%s">New</a>' % esc(thisUrl + '&sort=new')
+    content += '</div>'
+    # nav bar
+    thisUrl += '&sort=' + sort
+    actualMax = minComment + min(len(rootComments), 10) - 1
+    prevUrl = thisUrl + '&page=' + str(pageNum - 1) if pageNum > 1 else None
+    nextUrl = thisUrl + '&page=' + str(pageNum + 1) if len(rootComments) > 10 else None
+    content += nav_buttons('Comments %i to %i' % (minComment, actualMax), prevUrl, nextUrl)
+    # display comments
+    content += ''.join([render_comment(c) for c in rootComments[:10]])
     serve_page(handler, 200, make_page('Comments', content, includeHeaderBar=False))
 
 ##### Flash Converter #####
