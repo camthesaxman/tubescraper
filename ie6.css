@@ -22,6 +22,9 @@ body {
     overflow: auto;
 }
 
+.comment-info {
+    height: 32px;
+}
 
 /* IE6 has an awful bug where elements with "position: relative" within
  * a container that has "overflow: auto" will overflow their container

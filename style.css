@@ -33,7 +33,7 @@ iframe {
     display: block;
     width: 100%;
     margin-top: 12px;
-    border: none;
+    border: 1px solid #444;
     background: url('https://upload.wikimedia.org/wikipedia/commons/d/de/Ajax-loader.gif') 0px 0px no-repeat;
 }
 
@@ -75,11 +75,37 @@ iframe {
     right: 10px;
 }
 
+/* Comments styling */
+.comment {
+    padding: 10px;
+    font-size: 10px;
+    color: #444;
+    border-top: 1px solid #CCC;
+}
+.comment img {
+    float:left;
+    width: 32px;
+    height: 32px;
+}
+.comment-info {
+    min-height: 32px;
+    padding-bottom: 10px;
+}
+.comment-info,
+.comment .comment {
+    margin-left: 32px;
+    padding-left: 10px;
+}
+.comment p {
+    font-size: 12px;
+    color: black;
+}
+
 /* Styling of item elements */
 /* An item is a div that has two children, a thumbnail on the left containing the image, and a details div on the right */
 .item {
     min-height: 100px;
-    border-bottom: 1px solid #CCC;
+    border-top: 1px solid #CCC;
     padding: 10px;
 }
 a.item-title {

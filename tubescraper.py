@@ -660,7 +660,49 @@ def serve_watch_page(handler, videoId, plist=None):
             content += '</div>\n'
     # description
     content += '<div class="drawer">Description<p class="description">%s</p></div>' % info['description']
+    # comments
+    content += '<div class="drawer">Comments<iframe src="/comments?v=%s"></div>\n' % videoId
     serve_page(handler, 200, make_page(info['title'], content))
+
+##### Comments Page #####
+
+commentHTML = '''
+<div class="comment">
+ <a href="/channel/%s" target="_top"><img src="%s"></a>
+ <div class="comment-info">
+  %s - %s
+  <p>%s</p>
+  %s
+ </div>
+  %s
+</div>
+'''
+
+def render_comment(comment):
+    repliesHTML = ''.join([render_comment(c) for c in comment['replies']]) if 'replies' in comment else ''
+    return commentHTML % (
+        esc(comment['author_id']),
+        esc(comment['author_thumbnail']),
+        esc(comment['author']),
+        esc(comment['time_text']),
+        esc(comment['text']),
+        '%i Like%s' % (comment['like_count'], '' if comment['like_count'] == 1 else 's'),
+        repliesHTML)
+    return content
+
+def serve_comments_page(handler, params):
+    videoId = params['v'][0]
+    url = 'https://youtube.com/watch?v=' + videoId
+    opts = {'getcomments':True, 'extract_flat':True}
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        info = ydl.extract_info(url, download=False)
+    # get root comments
+    rootComments = [c for c in info['comments'] if c['parent'] == 'root']
+    # get replies
+    for comment in rootComments:
+        comment['replies'] = [c for c in info['comments'] if c['parent'] == comment['id']]
+    content = ''.join([render_comment(c) for c in rootComments])
+    serve_page(handler, 200, make_page('Comments', content, includeHeaderBar=False))
 
 ##### Flash Converter #####
 
@@ -774,6 +816,8 @@ class MyRequestHandler(http.server.BaseHTTPRequestHandler):
                     raise Error404
             elif path.startswith('/shorts/'):
                 serve_watch_page(self, path.split('/')[2])
+            elif path == '/comments':
+                serve_comments_page(self, params)
             # Playlist page
             elif path == '/playlist':
                 serve_playlist_page(self, params)
